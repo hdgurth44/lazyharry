@@ -1,148 +1,82 @@
-# LazyHarry
+# LazyHarry - Raycast Extension
 
-It allows me to add a note from anywhere to my local notes file in /Users/hdga/Harry-Git/HNotes/00Inbox/braindump.md
+A custom Raycast extension that allows you to quickly capture ideas and append them to your local braindump file.
 
----
-title: Raycast Braindump Snippets
-type: reference
-tags: [raycast, snippets, productivity, inbox]
-date: 2025-01-27
----
+## Overview
 
-# Raycast Braindump Snippets
+This extension provides a simple form interface to capture "Quick Idea" entries and automatically append them to `/Users/hdga/Harry-Git/HNotes/00Inbox/braindump.md` with proper YAML frontmatter formatting that's compatible with the `@inbox-cleaner` agent.
 
-Ready-to-use Raycast snippets optimized for quick capture into `braindump.md` that work seamlessly with the `@inbox-cleaner` agent.
+## Features
 
-## Snippet Collection
+- **Quick Idea Capture**: Simple form with title and optional content fields
+- **Automatic Formatting**: Entries are formatted with proper YAML frontmatter and timestamps
+- **File Integration**: Directly appends to your braindump.md file
+- **Open in Cursor**: Secondary action to open the braindump file in Cursor for review/editing
+- **Form Reset**: Fields automatically clear after successful submission for quick successive entries
 
-### 1. Quick Idea
-**Name:** `Braindump - Idea`  
-**Use case:** Capturing random ideas, thoughts, product concepts
+## Usage
 
-```
+1. **Launch**: Open Raycast and run "New Idea" command
+2. **Fill Form**: Enter your idea title (required) and optional content
+3. **Submit**: Click "Add to Braindump" to append the entry
+4. **Optional**: Use "Open in Cursor" action to view/edit the full braindump file
+
+## Technical Details
+
+### Entry Format
+Each entry follows the "Quick Idea" template structure:
+```yaml
 ---
 type: idea
-title: {argument name="Idea title"}
-date: {date format="yyyy-MM-dd"}
+title: Your Idea Title
+date: 2025-01-27
 ---
-{datetime} | {argument name="Idea title"}
+2025-01-27 14:30:00 | Your Idea Title
 
-{clipboard}
-{cursor}
-
----
-```
-
-### 2. Note to Self
-**Name:** `Braindump - Note`  
-**Use case:** General notes, reminders, observations that don't fit other categories
-
-```
----
-type: note
-title: {argument name="Note title"}
-date: {date format="yyyy-MM-dd"}
----
-{datetime} | {argument name="Note title"}
-
-{clipboard}
-{cursor}
+Your content here...
 
 ---
 ```
 
-### 3. Meeting (Manual)
-**Name:** `Braindump - Meeting Manual`  
-**Use case:** Meetings where you took notes manually or recording wasn't possible
+### File Path
+- **Target File**: `/Users/hdga/Harry-Git/HNotes/00Inbox/braindump.md`
+- **Operation**: Append (preserves existing content)
+- **Encoding**: UTF-8
 
+### Date Formatting
+- **Frontmatter Date**: `yyyy-MM-dd` format
+- **Timestamp Line**: `yyyy-MM-dd HH:mm:ss` format
+
+## Development
+
+### Project Structure
 ```
----
-type: meeting
-title: {argument name="Meeting title"}
-date: {date format="yyyy-MM-dd"}
-attendees: [{argument name="Attendees (comma-separated)"}]
-project: {argument name="Project code (e.g., BR, WF)" default=""}
----
-# Meeting — {argument name="Meeting title"}
-
-**Date:** {datetime}
-**Attendees:** {argument name="Attendees (comma-separated)"}
-
-## Notes
-{clipboard}
-{cursor}
-
----
+lazyharry/
+├── src/
+│   └── new-idea.tsx    # Main extension component
+├── assets/
+│   └── extension-icon.png
+├── package.json
+└── README.md
 ```
 
-### 4. Meeting (Granola Paste)
-**Name:** `Braindump - Meeting Granola`  
-**Use case:** Pasting Granola transcripts - minimal frontmatter, ready for full paste
+### Key Dependencies
+- `@raycast/api`: Raycast extension framework
+- `@raycast/utils`: Raycast utilities
+- `fs`: Node.js file system operations
 
-```
----
-type: meeting
-title: {argument name="Meeting title"}
-date: {date format="yyyy-MM-dd"}
-source: granola
----
-#TLDR
-{cursor}
+### Form State Management
+- Uses React `useState` for controlled form inputs
+- Automatic field reset after successful submission
+- Error handling with user-friendly toast notifications
 
-{clipboard}
+## Related Documentation
 
----
-```
+- **[Raycast Snippets](RAYCAST_SNIPPETS.md)**: Alternative approach using Raycast snippets for braindump capture
+- **Inbox-Cleaner Agent**: Processes braindump entries and files them to appropriate PARA locations
 
-### 5. Reference/Link
-**Name:** `Braindump - Reference`  
-**Use case:** Articles, documentation, links to process later
+## Future Enhancements
 
-```
----
-type: reference
-title: {argument name="Title"}
-date: {date format="yyyy-MM-dd"}
-url: {argument name="URL (optional)" default=""}
----
-{datetime} | {argument name="Title"}
-
-{clipboard}
-{cursor}
-
----
-```
-
-## Setup Instructions
-
-1. **Open Raycast** → Extensions → Snippets
-2. **Create new snippet** for each template above
-3. **Set snippet names** as specified (e.g., "Braindump - Idea")
-4. **Copy the template code** (everything between the triple backticks)
-5. **Set keyword** (optional): `bd-idea`, `bd-note`, `bd-meeting`, etc.
-
-## Usage Workflow
-
-1. **Capture:** Trigger Raycast snippet → fill arguments → paste into `braindump.md`
-2. **Repeat:** Use throughout day/week as needed
-3. **Process:** Run `/inbox` command when ready to organize
-4. **File:** Inbox-cleaner splits entries and files to correct PARA location
-
-## Design Benefits
-
-- **Clear separators:** `---` boundaries for easy entry splitting
-- **Consistent metadata:** YAML frontmatter matches inbox-cleaner expectations
-- **Type taxonomy:** `idea`, `note`, `meeting`, `reference` for proper categorization
-- **Optional fields:** Project codes and URLs available when needed
-- **Cursor placement:** Positioned for immediate content entry
-
-## Inbox-Cleaner Compatibility
-
-These snippets are optimized for the `@inbox-cleaner` agent because they:
-- Use clear `type` field for categorization
-- Include `date` in YAML for sorting/filing
-- Provide `title` for filename generation
-- Use `---` separators for entry splitting
-- Match existing template structure (like Charles meeting example)
-- Include optional `project` field for routing to `01Projects/` folders
-- Use `attendees` array matching existing meeting note format
+- Support for additional entry types (notes, meetings, references)
+- Dropdown to select entry type
+- Integration with additional note-taking workflows
