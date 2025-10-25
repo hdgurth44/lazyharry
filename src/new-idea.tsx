@@ -10,11 +10,56 @@ type Values = {
   additionalAttendees: string;
   url: string;
   tldr: string;
+  companyPrefix: string;
+  linkedinUrl: string;
+  tags: string[];
 };
 
-type AttendeesData = {
+// Helper function to get emoji for entry type
+function getEmojiForType(type: string): string {
+  const emojiMap: { [key: string]: string } = {
+    idea: "💡",
+    note: "📝",
+    meeting: "🤝",
+    task: "✅",
+    reference: "🔗",
+    people: "👤"
+  };
+  return emojiMap[type] || "📝";
+}
+
+// Helper function to capitalize type name
+function capitalizeType(type: string): string {
+  return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+// Helper function to format time as "10am, Oct 25"
+function formatFriendlyTime(date: Date): string {
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? 'pm' : 'am';
+  const displayHours = hours % 12 || 12;
+  const timeStr = minutes === 0 ? `${displayHours}${ampm}` : `${displayHours}:${minutes.toString().padStart(2, '0')}${ampm}`;
+  
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = monthNames[date.getMonth()];
+  const day = date.getDate();
+  
+  return `${timeStr}, ${month} ${day}`;
+}
+
+// Helper function to build metadata comment string
+function formatMetadataComment(type: string, date: string, time: string, additionalFields: string[]): string {
+  const base = `<!-- ENTRY: ${type} | ${date} | ${time}`;
+  const fields = additionalFields.join(' | ');
+  return fields ? `${base} | ${fields} -->` : `${base} -->`;
+}
+
+type ConfigData = {
   defaultAttendee: string;
   suggestedAttendees: string[];
+  companyPrefixes: Array<{ value: string; title: string }>;
+  peopleTags: string[];
 };
 
 export default function Command() {
@@ -25,20 +70,34 @@ export default function Command() {
   const [additionalAttendees, setAdditionalAttendees] = useState("");
   const [url, setUrl] = useState("");
   const [tldr, setTldr] = useState("");
-  const [attendeesData, setAttendeesData] = useState<AttendeesData>({ defaultAttendee: "You", suggestedAttendees: [] });
+  const [configData, setConfigData] = useState<ConfigData>({ 
+    defaultAttendee: "You", 
+    suggestedAttendees: [],
+    companyPrefixes: [],
+    peopleTags: []
+  });
+  // State variables for people type
+  const [companyPrefix, setCompanyPrefix] = useState("BR");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
 
-  // Load attendees data on component mount
+  // Load config data on component mount
   useEffect(() => {
     try {
-      const attendeesPath = "/Users/hdga/Harry-Git/Raycast/lazyharry/src/attendees.json";
-      const data = JSON.parse(readFileSync(attendeesPath, 'utf8'));
-      setAttendeesData(data);
+      const configPath = "/Users/hdga/Harry-Git/Raycast/lazyharry/src/config.json";
+      const data = JSON.parse(readFileSync(configPath, 'utf8'));
+      setConfigData(data);
       // Pre-select only the default attendee for manual meetings
       setAttendees([data.defaultAttendee]);
     } catch (error) {
-      console.error("Error loading attendees data:", error);
+      console.error("Error loading config data:", error);
       // Fallback to default values
-      setAttendeesData({ defaultAttendee: "You", suggestedAttendees: ["Charles", "Alexander"] });
+      setConfigData({ 
+        defaultAttendee: "You", 
+        suggestedAttendees: ["Charles", "Alexander"],
+        companyPrefixes: [{ value: "BR", title: "BR (BeReal)" }],
+        peopleTags: ["manager", "peer"]
+      });
       setAttendees(["You"]);
     }
   }, []);
@@ -46,9 +105,9 @@ export default function Command() {
   // Reset attendees when switching to meetings
   useEffect(() => {
     if (snippetType === "meeting") {
-      setAttendees([attendeesData.defaultAttendee]);
+      setAttendees([configData.defaultAttendee]);
     }
-  }, [snippetType, attendeesData.defaultAttendee]);
+  }, [snippetType, configData.defaultAttendee]);
 
   // Pre-populate fields with clipboard content when switching snippet types
   useEffect(() => {
@@ -61,6 +120,8 @@ export default function Command() {
         
         if (snippetType === "reference" && !url && isValidUrl(trimmedText)) {
           setUrl(trimmedText);
+        } else if (snippetType === "people" && !linkedinUrl && isValidUrl(trimmedText)) {
+          setLinkedinUrl(trimmedText);
         } else if (
           (snippetType === "note" || snippetType === "meeting") 
           && !content
@@ -73,7 +134,7 @@ export default function Command() {
     };
 
     populateFromClipboard();
-  }, [snippetType, url, content]);
+  }, [snippetType, url, content, linkedinUrl]);
 
   // Helper function to check if text looks like a URL
   const isValidUrl = (text: string): boolean => {
@@ -94,27 +155,27 @@ export default function Command() {
       const datetimeStr = now.toISOString().replace('T', ' ').split('.')[0]; // yyyy-MM-dd HH:mm:ss format
       
       let entry = "";
+      const friendlyTime = formatFriendlyTime(now);
+      const emoji = getEmojiForType(values.snippetType);
+      const typeLabel = capitalizeType(values.snippetType);
       
       // Format entry based on snippet type
       switch (values.snippetType) {
         case "idea":
-          entry = `---
-type: idea
-date: ${dateStr}
----
-${datetimeStr} | ${values.title}
+          entry = `${formatMetadataComment("idea", dateStr, datetimeStr, [])}
+
+## ${emoji} ${typeLabel} | ${friendlyTime}
+
+${values.title}
 
 ---
 `;
           break;
           
         case "note":
-          entry = `---
-type: note
-title: ${values.title}
-date: ${dateStr}
----
-${datetimeStr} | ${values.title}
+          entry = `${formatMetadataComment("note", dateStr, datetimeStr, [`title: ${values.title}`])}
+
+## ${emoji} ${typeLabel} | ${values.title} | ${friendlyTime}
 
 ${values.content || ''}
 
@@ -128,19 +189,30 @@ ${values.content || ''}
             ? values.additionalAttendees.split(',').map(name => name.trim()).filter(name => name.length > 0)
             : [];
           const allAttendees = [...values.attendees, ...additionalAttendeesList];
+          const attendeesStr = allAttendees.join(', ');
           
-          entry = `---
-type: meeting
-title: ${values.title}
-date: ${dateStr}
-attendees: [${allAttendees.map(a => `"${a}"`).join(', ')}]
+          const meetingFields = [`title: ${values.title}`, `attendees: ${attendeesStr}`];
+          
+          entry = `${formatMetadataComment("meeting", dateStr, datetimeStr, meetingFields)}
+
+## ${emoji} ${typeLabel} | ${values.title} | ${friendlyTime}
+
+${values.tldr ? `${values.tldr}\n\n` : ''}${values.content || ''}
+
 ---
-# Meeting — ${values.title}
+`;
+          break;
+        }
+          
+        case "reference": {
+          const referenceFields = [];
+          if (values.title) referenceFields.push(`title: ${values.title}`);
+          if (values.url) referenceFields.push(`url: ${values.url}`);
+          
+          entry = `${formatMetadataComment("reference", dateStr, datetimeStr, referenceFields)}
 
-**Date:** ${datetimeStr}
-**Attendees:** ${allAttendees.join(', ')}
+## ${emoji} ${typeLabel} | ${values.title || 'Reference'} | ${friendlyTime}
 
-${values.tldr ? `## TLDR\n${values.tldr}\n` : ''}## Notes
 ${values.content || ''}
 
 ---
@@ -148,19 +220,26 @@ ${values.content || ''}
           break;
         }
           
-        case "reference":
-          entry = `---
-type: reference
-date: ${dateStr}
-url: ${values.url || ''}
----
-${datetimeStr} | ${values.title}
+        case "people": {
+          const tagsList = values.tags.length > 0 ? values.tags.join(', ') : '';
+          const fullName = `${values.companyPrefix} — ${values.title}`;
+          const peopleFields = [
+            `title: ${fullName}`,
+            `company: ${values.companyPrefix}`
+          ];
+          if (values.linkedinUrl) peopleFields.push(`linkedin: ${values.linkedinUrl}`);
+          if (tagsList) peopleFields.push(`tags: ${tagsList}`);
+          
+          entry = `${formatMetadataComment("people", dateStr, datetimeStr, peopleFields)}
+
+## ${emoji} ${typeLabel} | ${fullName} | ${friendlyTime}
 
 ${values.content || ''}
 
 ---
 `;
           break;
+        }
       }
 
       // Append to braindump.md file
@@ -176,10 +255,13 @@ ${values.content || ''}
       setSnippetType("idea");
       setTitle("");
       setContent("");
-      setAttendees([attendeesData.defaultAttendee]);
+      setAttendees([configData.defaultAttendee]);
       setAdditionalAttendees("");
       setUrl("");
       setTldr("");
+      setCompanyPrefix("BR");
+      setLinkedinUrl("");
+      setTags([]);
     } catch (error) {
       console.error("Error writing to braindump.md:", error);
       showToast({ 
@@ -207,7 +289,7 @@ ${values.content || ''}
       <Form.TextArea 
         id="title" 
         title="Title" 
-        placeholder="Add 1-liner"
+        placeholder={snippetType === "people" ? "e.g., John Smith" : "Add 1-liner"}
         value={title}
         onChange={setTitle}
       />
@@ -222,6 +304,7 @@ ${values.content || ''}
         <Form.Dropdown.Item value="note" title="📝 Note to Self" />
         <Form.Dropdown.Item value="meeting" title="🙋 Meeting" />
         <Form.Dropdown.Item value="reference" title="🔗 Reference/Link" />
+        <Form.Dropdown.Item value="people" title="👤 Person/Contact" />
       </Form.Dropdown>
       
       {snippetType !== "idea" && (
@@ -262,7 +345,7 @@ ${values.content || ''}
           onChange={setAttendees}
           placeholder="Add attendees"
         >
-          {attendeesData.suggestedAttendees.map((attendee) => (
+          {configData.suggestedAttendees.map((attendee) => (
             <Form.TagPicker.Item key={attendee} value={attendee} title={attendee} />
           ))}
         </Form.TagPicker>
@@ -276,6 +359,49 @@ ${values.content || ''}
           value={additionalAttendees}
           onChange={setAdditionalAttendees}
         />
+      )}
+      
+      {snippetType === "people" && (
+        <>
+          <Form.Dropdown
+            id="companyPrefix"
+            title="Company"
+            value={companyPrefix}
+            onChange={setCompanyPrefix}
+          >
+            {configData.companyPrefixes.map((company) => (
+              <Form.Dropdown.Item key={company.value} value={company.value} title={company.title} />
+            ))}
+          </Form.Dropdown>
+          
+          <Form.TextField 
+            id="linkedinUrl" 
+            title="LinkedIn URL" 
+            placeholder="https://linkedin.com/in/..."
+            value={linkedinUrl}
+            onChange={setLinkedinUrl}
+          />
+          
+          <Form.TagPicker
+            id="tags"
+            title="Tags"
+            value={tags}
+            onChange={setTags}
+            placeholder="Add relevant tags (optional)"
+          >
+            {configData.peopleTags.map((tag) => (
+              <Form.TagPicker.Item key={tag} value={tag} title={tag} />
+            ))}
+          </Form.TagPicker>
+          
+          <Form.TextArea 
+            id="content" 
+            title="Initial Notes" 
+            placeholder="Any quick notes about this person (optional)"
+            value={content}
+            onChange={setContent}
+          />
+        </>
       )}
     </Form>
   );

@@ -1,0 +1,14 @@
+{
+  "defaultAttendee": "You",
+  "suggestedAttendees": ["Add", "Harry", "Charles", "Alexander"],
+  "companyPrefixes": [
+    { "value": "BR", "title": "BR (BeReal)" },
+    { "value": "VO", "title": "VO (Voodoo)" },
+    { "value": "WF", "title": "WF" },
+    { "value": "MS", "title": "MS" }
+  ],
+  "peopleTags": [
+    "manager", "peer", "stakeholder", "leadership",
+    "engineering", "product", "design"
+  ]
+}
