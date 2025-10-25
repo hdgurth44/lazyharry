@@ -284,7 +284,7 @@ ${values.content || ''}
         </ActionPanel>
       }
     >
-      <Form.Description text="📝 Add notes to braindump.md." />
+      {/* <Form.Description text="📝 Add notes to braindump.md." /> */}
     
       <Form.TextArea 
         id="title" 

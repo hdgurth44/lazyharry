@@ -18,6 +18,13 @@
       "subtitle": "Append an idea to a local file",
       "description": "Appends a new idea note to my local braindump.md file",
       "mode": "view"
+    },
+    {
+      "name": "new-task",
+      "title": "New Task",
+      "subtitle": "Add a task to tasks.md",
+      "description": "Prepends a new task to my local tasks.md file",
+      "mode": "view"
     }
   ],
   "dependencies": {
