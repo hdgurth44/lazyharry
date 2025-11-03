@@ -1,6 +1,7 @@
 import { Form, ActionPanel, Action, showToast, Clipboard } from "@raycast/api";
-import { appendFileSync, readFileSync } from "fs";
+import { appendFileSync } from "fs";
 import { useState, useEffect } from "react";
+import configDataJson from "./config.json";
 
 type Values = {
   snippetType: string;
@@ -83,23 +84,9 @@ export default function Command() {
 
   // Load config data on component mount
   useEffect(() => {
-    try {
-      const configPath = "/Users/hdga/Harry-Git/Raycast/lazyharry/src/config.json";
-      const data = JSON.parse(readFileSync(configPath, 'utf8'));
-      setConfigData(data);
-      // Pre-select only the default attendee for manual meetings
-      setAttendees([data.defaultAttendee]);
-    } catch (error) {
-      console.error("Error loading config data:", error);
-      // Fallback to default values
-      setConfigData({ 
-        defaultAttendee: "You", 
-        suggestedAttendees: ["Charles", "Alexander"],
-        companyPrefixes: [{ value: "BR", title: "BR (BeReal)" }],
-        peopleTags: ["manager", "peer"]
-      });
-      setAttendees(["You"]);
-    }
+    setConfigData(configDataJson);
+    // Pre-select only the default attendee for manual meetings
+    setAttendees([configDataJson.defaultAttendee]);
   }, []);
 
   // Reset attendees when switching to meetings
