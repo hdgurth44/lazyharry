@@ -1,5 +1,6 @@
 import { Form, ActionPanel, Action, showToast, Clipboard } from "@raycast/api";
-import { appendFileSync } from "fs";
+import { existsSync, mkdirSync, appendFileSync, writeFileSync } from "fs";
+import { dirname } from "path";
 import { useState, useEffect } from "react";
 import configDataJson from "./config.json";
 
@@ -7,10 +8,7 @@ type Values = {
   snippetType: string;
   title: string;
   content: string;
-  attendees: string[];
-  additionalAttendees: string;
   url: string;
-  tldr: string;
   companyPrefix: string;
   linkedinUrl: string;
   tags: string[];
@@ -67,12 +65,9 @@ export default function Command() {
   const [snippetType, setSnippetType] = useState("idea");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [attendees, setAttendees] = useState<string[]>([]);
-  const [additionalAttendees, setAdditionalAttendees] = useState("");
   const [url, setUrl] = useState("");
-  const [tldr, setTldr] = useState("");
-  const [configData, setConfigData] = useState<ConfigData>({ 
-    defaultAttendee: "You", 
+  const [configData, setConfigData] = useState<ConfigData>({
+    defaultAttendee: "You",
     suggestedAttendees: [],
     companyPrefixes: [],
     peopleTags: []
@@ -85,16 +80,33 @@ export default function Command() {
   // Load config data on component mount
   useEffect(() => {
     setConfigData(configDataJson);
-    // Pre-select only the default attendee for manual meetings
-    setAttendees([configDataJson.defaultAttendee]);
   }, []);
 
-  // Reset attendees when switching to meetings
-  useEffect(() => {
-    if (snippetType === "meeting") {
-      setAttendees([configData.defaultAttendee]);
+  // Resolve braindump path for this machine (supports multiple locations)
+  const braindumpCandidates = [
+    "/Users/harry-daniel.gurth-angeles/Documents/GitHub/Hnotes/00Inbox/braindump.md",
+    "/Users/hdga/Harry-Git/HNotes/00Inbox/braindump.md"
+  ];
+
+  function getFirstExistingPath(paths: string[]): string | null {
+    for (const p of paths) {
+      if (existsSync(p) || existsSync(dirname(p))) return p;
     }
-  }, [snippetType, configData.defaultAttendee]);
+    return null;
+  }
+
+  function ensureFileExists(filePath: string) {
+    const dir = dirname(filePath);
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    if (!existsSync(filePath)) writeFileSync(filePath, "");
+  }
+
+  const braindumpPath = (() => {
+    const found = getFirstExistingPath(braindumpCandidates);
+    const chosen = found ?? braindumpCandidates[0];
+    ensureFileExists(chosen);
+    return chosen;
+  })();
 
   // Pre-populate fields with clipboard content when switching snippet types
   useEffect(() => {
@@ -104,15 +116,12 @@ export default function Command() {
         if (!clipboardText) return;
 
         const trimmedText = clipboardText.trim();
-        
-        if (snippetType === "reference" && !url && isValidUrl(trimmedText)) {
+
+        if (snippetType === "note" && !url && isValidUrl(trimmedText)) {
           setUrl(trimmedText);
         } else if (snippetType === "people" && !linkedinUrl && isValidUrl(trimmedText)) {
           setLinkedinUrl(trimmedText);
-        } else if (
-          (snippetType === "note" || snippetType === "meeting") 
-          && !content
-        ) {
+        } else if (snippetType === "note" && !content) {
           setContent(trimmedText);
         }
       } catch (error) {
@@ -159,8 +168,11 @@ ${values.title}
 `;
           break;
           
-        case "note":
-          entry = `${formatMetadataComment("note", dateStr, datetimeStr, [`title: ${values.title}`])}
+        case "note": {
+          const noteFields = [`title: ${values.title}`];
+          if (values.url) noteFields.push(`url: ${values.url}`);
+
+          entry = `${formatMetadataComment("note", dateStr, datetimeStr, noteFields)}
 
 ## ${emoji} ${typeLabel} | ${values.title} | ${friendlyTime}
 
@@ -169,44 +181,8 @@ ${values.content || ''}
 ---
 `;
           break;
-          
-        case "meeting": {
-          // Combine selected attendees with additional attendees
-          const additionalAttendeesList = values.additionalAttendees
-            ? values.additionalAttendees.split(',').map(name => name.trim()).filter(name => name.length > 0)
-            : [];
-          const allAttendees = [...values.attendees, ...additionalAttendeesList];
-          const attendeesStr = allAttendees.join(', ');
-          
-          const meetingFields = [`title: ${values.title}`, `attendees: ${attendeesStr}`];
-          
-          entry = `${formatMetadataComment("meeting", dateStr, datetimeStr, meetingFields)}
-
-## ${emoji} ${typeLabel} | ${values.title} | ${friendlyTime}
-
-${values.tldr ? `${values.tldr}\n\n` : ''}${values.content || ''}
-
----
-`;
-          break;
         }
-          
-        case "reference": {
-          const referenceFields = [];
-          if (values.title) referenceFields.push(`title: ${values.title}`);
-          if (values.url) referenceFields.push(`url: ${values.url}`);
-          
-          entry = `${formatMetadataComment("reference", dateStr, datetimeStr, referenceFields)}
 
-## ${emoji} ${typeLabel} | ${values.title || 'Reference'} | ${friendlyTime}
-
-${values.content || ''}
-
----
-`;
-          break;
-        }
-          
         case "people": {
           const tagsList = values.tags.length > 0 ? values.tags.join(', ') : '';
           const fullName = `${values.companyPrefix} — ${values.title}`;
@@ -230,8 +206,7 @@ ${values.content || ''}
       }
 
       // Append to braindump.md file
-      const filePath = "/Users/hdga/Harry-Git/HNotes/00Inbox/braindump.md";
-      appendFileSync(filePath, entry);
+      appendFileSync(braindumpPath, entry);
       
       showToast({ 
         title: "Entry Added", 
@@ -242,10 +217,7 @@ ${values.content || ''}
       setSnippetType("idea");
       setTitle("");
       setContent("");
-      setAttendees([configData.defaultAttendee]);
-      setAdditionalAttendees("");
       setUrl("");
-      setTldr("");
       setCompanyPrefix("BR");
       setLinkedinUrl("");
       setTags([]);
@@ -265,7 +237,7 @@ ${values.content || ''}
           <Action.SubmitForm onSubmit={handleSubmit} title="Add to Braindump" />
           <Action.Open 
             title="Open in Cursor" 
-            target="/Users/hdga/Harry-Git/HNotes/00Inbox/braindump.md"
+            target={braindumpPath}
             application="Cursor"
           />
         </ActionPanel>
@@ -289,65 +261,29 @@ ${values.content || ''}
       >
         <Form.Dropdown.Item value="idea" title="💡 Quick Idea" />
         <Form.Dropdown.Item value="note" title="📝 Note to Self" />
-        <Form.Dropdown.Item value="meeting" title="🙋 Meeting" />
-        <Form.Dropdown.Item value="reference" title="🔗 Reference/Link" />
         <Form.Dropdown.Item value="people" title="👤 Person/Contact" />
       </Form.Dropdown>
       
       {snippetType !== "idea" && (
-        <Form.TextArea 
-          id="content" 
-          title="Content" 
+        <Form.TextArea
+          id="content"
+          title="Content"
           placeholder="Add or paste notes (optional)"
           value={content}
           onChange={setContent}
         />
       )}
-      
-      {snippetType === "reference" && (
-        <Form.TextField 
-          id="url" 
-          title="URL" 
+
+      {snippetType === "note" && (
+        <Form.TextField
+          id="url"
+          title="URL"
           placeholder="https://example.com (optional)"
           value={url}
           onChange={setUrl}
         />
       )}
-      
-      {snippetType === "meeting" && (
-        <Form.TextArea 
-          id="tldr" 
-          title="TLDR" 
-          placeholder="Add quick personal notes (optional)"
-          value={tldr}
-          onChange={setTldr}
-        />
-      )}
-      
-      {snippetType === "meeting" && (
-        <Form.TagPicker
-          id="attendees"
-          title="Attendees"
-          value={attendees}
-          onChange={setAttendees}
-          placeholder="Add attendees"
-        >
-          {configData.suggestedAttendees.map((attendee) => (
-            <Form.TagPicker.Item key={attendee} value={attendee} title={attendee} />
-          ))}
-        </Form.TagPicker>
-      )}
-      
-      {snippetType === "meeting" && (
-        <Form.TextField 
-          id="additionalAttendees" 
-          title="Additional attendees" 
-          placeholder="e.g., John, Jane, Bob"
-          value={additionalAttendees}
-          onChange={setAdditionalAttendees}
-        />
-      )}
-      
+
       {snippetType === "people" && (
         <>
           <Form.Dropdown

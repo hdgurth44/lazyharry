@@ -20,10 +20,10 @@
       "mode": "view"
     },
     {
-      "name": "new-task",
-      "title": "New Task",
-      "subtitle": "Add a task to tasks.md",
-      "description": "Prepends a new task to my local tasks.md file",
+      "name": "new-meeting",
+      "title": "New Meeting",
+      "subtitle": "Add meeting or user interview notes",
+      "description": "Appends meeting notes or user interview notes to my local braindump.md file",
       "mode": "view"
     }
   ],
