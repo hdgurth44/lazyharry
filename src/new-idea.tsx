@@ -73,7 +73,7 @@ export default function Command() {
     peopleTags: []
   });
   // State variables for people type
-  const [companyPrefix, setCompanyPrefix] = useState("BR");
+  const [companyPrefix, setCompanyPrefix] = useState("KU");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [tags, setTags] = useState<string[]>([]);
 
@@ -84,6 +84,7 @@ export default function Command() {
 
   // Resolve braindump path for this machine (supports multiple locations)
   const braindumpCandidates = [
+    "/Users/harry.angeles/Documents/harryGit/Hnotes/00Inbox/braindump.md",
     "/Users/harry-daniel.gurth-angeles/Documents/GitHub/Hnotes/00Inbox/braindump.md",
     "/Users/hdga/Harry-Git/HNotes/00Inbox/braindump.md"
   ];
@@ -218,7 +219,7 @@ ${values.content || ''}
       setTitle("");
       setContent("");
       setUrl("");
-      setCompanyPrefix("BR");
+      setCompanyPrefix("KU");
       setLinkedinUrl("");
       setTags([]);
     } catch (error) {
@@ -317,9 +318,9 @@ ${values.content || ''}
             ))}
           </Form.TagPicker>
           
-          <Form.TextArea 
-            id="content" 
-            title="Initial Notes" 
+          <Form.TextArea
+            id="peopleNotes"
+            title="Initial Notes"
             placeholder="Any quick notes about this person (optional)"
             value={content}
             onChange={setContent}

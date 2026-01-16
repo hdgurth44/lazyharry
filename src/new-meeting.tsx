@@ -50,6 +50,44 @@ function formatMetadataComment(date: string, time: string, additionalFields: str
   return fields ? `${base} | ${fields} -->` : `${base} -->`;
 }
 
+// Helper function to parse Granola transcript format
+// Extracts title from "# Title" heading and removes date line
+function parseGranolaTranscript(text: string): { title: string; content: string } {
+  const lines = text.trim().split('\n');
+
+  // Check if first line is a markdown heading
+  const headingMatch = lines[0]?.match(/^#\s+(.+)$/);
+  if (!headingMatch) {
+    return { title: '', content: text.trim() };
+  }
+
+  const title = headingMatch[1].trim();
+
+  // Skip the heading line and find where content starts
+  // Granola format: # Title, blank line, date line, blank line, content
+  let contentStartIndex = 1;
+
+  // Skip blank lines and date line after title
+  while (contentStartIndex < lines.length) {
+    const line = lines[contentStartIndex].trim();
+    // Skip empty lines
+    if (line === '') {
+      contentStartIndex++;
+      continue;
+    }
+    // Skip date line (format: "Thu, 15 Jan 26" or similar short date patterns)
+    if (/^[A-Z][a-z]{2},?\s+\d{1,2}\s+[A-Z][a-z]{2}\s+\d{2,4}$/.test(line)) {
+      contentStartIndex++;
+      continue;
+    }
+    // Found actual content
+    break;
+  }
+
+  const content = lines.slice(contentStartIndex).join('\n').trim();
+  return { title, content };
+}
+
 type ConfigData = {
   defaultAttendee: string;
   suggestedAttendees: string[];
@@ -76,6 +114,7 @@ export default function Command() {
 
   // Resolve braindump path for this machine (supports multiple locations)
   const braindumpCandidates = [
+    "/Users/harry.angeles/Documents/harryGit/Hnotes/00Inbox/braindump.md",
     "/Users/harry-daniel.gurth-angeles/Documents/GitHub/Hnotes/00Inbox/braindump.md",
     "/Users/hdga/Harry-Git/HNotes/00Inbox/braindump.md"
   ];
@@ -100,22 +139,26 @@ export default function Command() {
     return chosen;
   })();
 
-  // Pre-populate content with clipboard text
+  // Pre-populate title and content from clipboard (supports Granola transcript format)
   useEffect(() => {
     const populateFromClipboard = async () => {
       try {
         const clipboardText = await Clipboard.readText();
-        if (!clipboardText || content) return;
+        if (!clipboardText || content || title) return;
 
-        const trimmedText = clipboardText.trim();
-        setContent(trimmedText);
+        const { title: parsedTitle, content: parsedContent } = parseGranolaTranscript(clipboardText);
+
+        if (parsedTitle) {
+          setTitle(parsedTitle);
+        }
+        setContent(parsedContent);
       } catch (error) {
         console.error("Error reading clipboard:", error);
       }
     };
 
     populateFromClipboard();
-  }, [content]);
+  }, [content, title]);
 
   function handleSubmit(values: Values) {
     try {

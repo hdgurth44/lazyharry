@@ -1,8 +1,8 @@
 {
-  "defaultAttendee": "You",
-  "suggestedAttendees": ["Add", "Harry", "Charles", "Alexander"],
+  "defaultAttendee": "Harry",
+  "suggestedAttendees": ["Harry", "Benedict Kurz", "Gregor Weber", "Anna Krebs", "Yannik Prigl", "Lucas Hild"],
   "companyPrefixes": [
-    { "value": "BR", "title": "BR (BeReal)" },
+    { "value": "KU", "title": "KU (Knowunity)" },
     { "value": "VO", "title": "VO (Voodoo)" },
     { "value": "WF", "title": "WF" },
     { "value": "MS", "title": "MS" }
