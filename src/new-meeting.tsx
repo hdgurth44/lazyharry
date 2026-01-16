@@ -1,8 +1,16 @@
 import { Form, ActionPanel, Action, showToast, Clipboard } from "@raycast/api";
-import { existsSync, mkdirSync, appendFileSync, writeFileSync } from "fs";
-import { dirname } from "path";
-import { useState, useEffect } from "react";
+import { appendFileSync } from "fs";
+import { useState, useEffect, useRef } from "react";
 import configDataJson from "./config.json";
+import {
+  ConfigData,
+  getEmojiForType,
+  capitalizeType,
+  formatFriendlyTime,
+  formatMetadataComment,
+  resolveBraindumpPath,
+  parseGranolaTranscript
+} from "./utils";
 
 type Values = {
   meetingType: string;
@@ -11,86 +19,6 @@ type Values = {
   attendees: string[];
   additionalAttendees: string;
   tldr: string;
-};
-
-// Helper function to get emoji for meeting type
-function getEmojiForType(type: string): string {
-  const emojiMap: { [key: string]: string } = {
-    meeting: "🤝",
-    interview: "🎙️"
-  };
-  return emojiMap[type] || "🤝";
-}
-
-// Helper function to capitalize type name
-function capitalizeType(type: string): string {
-  if (type === "interview") return "User Interview";
-  return type.charAt(0).toUpperCase() + type.slice(1);
-}
-
-// Helper function to format time as "10am, Oct 25"
-function formatFriendlyTime(date: Date): string {
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  const ampm = hours >= 12 ? 'pm' : 'am';
-  const displayHours = hours % 12 || 12;
-  const timeStr = minutes === 0 ? `${displayHours}${ampm}` : `${displayHours}:${minutes.toString().padStart(2, '0')}${ampm}`;
-
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const month = monthNames[date.getMonth()];
-  const day = date.getDate();
-
-  return `${timeStr}, ${month} ${day}`;
-}
-
-// Helper function to build metadata comment string
-function formatMetadataComment(date: string, time: string, additionalFields: string[]): string {
-  const base = `<!-- ENTRY: meeting | ${date} | ${time}`;
-  const fields = additionalFields.join(' | ');
-  return fields ? `${base} | ${fields} -->` : `${base} -->`;
-}
-
-// Helper function to parse Granola transcript format
-// Extracts title from "# Title" heading and removes date line
-function parseGranolaTranscript(text: string): { title: string; content: string } {
-  const lines = text.trim().split('\n');
-
-  // Check if first line is a markdown heading
-  const headingMatch = lines[0]?.match(/^#\s+(.+)$/);
-  if (!headingMatch) {
-    return { title: '', content: text.trim() };
-  }
-
-  const title = headingMatch[1].trim();
-
-  // Skip the heading line and find where content starts
-  // Granola format: # Title, blank line, date line, blank line, content
-  let contentStartIndex = 1;
-
-  // Skip blank lines and date line after title
-  while (contentStartIndex < lines.length) {
-    const line = lines[contentStartIndex].trim();
-    // Skip empty lines
-    if (line === '') {
-      contentStartIndex++;
-      continue;
-    }
-    // Skip date line (format: "Thu, 15 Jan 26" or similar short date patterns)
-    if (/^[A-Z][a-z]{2},?\s+\d{1,2}\s+[A-Z][a-z]{2}\s+\d{2,4}$/.test(line)) {
-      contentStartIndex++;
-      continue;
-    }
-    // Found actual content
-    break;
-  }
-
-  const content = lines.slice(contentStartIndex).join('\n').trim();
-  return { title, content };
-}
-
-type ConfigData = {
-  defaultAttendee: string;
-  suggestedAttendees: string[];
 };
 
 export default function Command() {
@@ -102,8 +30,14 @@ export default function Command() {
   const [tldr, setTldr] = useState("");
   const [configData, setConfigData] = useState<ConfigData>({
     defaultAttendee: "You",
-    suggestedAttendees: []
+    suggestedAttendees: [],
+    companyPrefixes: [],
+    peopleTags: [],
+    braindumpCandidates: []
   });
+
+  // Track last processed clipboard to avoid re-processing after form reset
+  const lastProcessedClipboard = useRef<string>("");
 
   // Load config data on component mount
   useEffect(() => {
@@ -112,39 +46,25 @@ export default function Command() {
     setAttendees([configDataJson.defaultAttendee]);
   }, []);
 
-  // Resolve braindump path for this machine (supports multiple locations)
-  const braindumpCandidates = [
-    "/Users/harry.angeles/Documents/harryGit/Hnotes/00Inbox/braindump.md",
-    "/Users/harry-daniel.gurth-angeles/Documents/GitHub/Hnotes/00Inbox/braindump.md",
-    "/Users/hdga/Harry-Git/HNotes/00Inbox/braindump.md"
-  ];
-
-  function getFirstExistingPath(paths: string[]): string | null {
-    for (const p of paths) {
-      if (existsSync(p) || existsSync(dirname(p))) return p;
-    }
-    return null;
-  }
-
-  function ensureFileExists(filePath: string) {
-    const dir = dirname(filePath);
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    if (!existsSync(filePath)) writeFileSync(filePath, "");
-  }
-
-  const braindumpPath = (() => {
-    const found = getFirstExistingPath(braindumpCandidates);
-    const chosen = found ?? braindumpCandidates[0];
-    ensureFileExists(chosen);
-    return chosen;
-  })();
+  // Resolve braindump path from config
+  const braindumpPath = resolveBraindumpPath(
+    configData.braindumpCandidates.length > 0
+      ? configData.braindumpCandidates
+      : ["/Users/harry.angeles/Documents/harryGit/Hnotes/00Inbox/braindump.md"]
+  );
 
   // Pre-populate title and content from clipboard (supports Granola transcript format)
   useEffect(() => {
     const populateFromClipboard = async () => {
       try {
         const clipboardText = await Clipboard.readText();
-        if (!clipboardText || content || title) return;
+        if (!clipboardText) return;
+
+        // Skip if we already processed this clipboard content
+        if (clipboardText === lastProcessedClipboard.current) return;
+
+        // Skip if form already has content (user is editing)
+        if (content || title) return;
 
         const { title: parsedTitle, content: parsedContent } = parseGranolaTranscript(clipboardText);
 
@@ -152,6 +72,9 @@ export default function Command() {
           setTitle(parsedTitle);
         }
         setContent(parsedContent);
+
+        // Mark this clipboard content as processed
+        lastProcessedClipboard.current = clipboardText;
       } catch (error) {
         console.error("Error reading clipboard:", error);
       }
@@ -161,10 +84,16 @@ export default function Command() {
   }, [content, title]);
 
   function handleSubmit(values: Values) {
+    // Validation
+    if (!values.title?.trim()) {
+      showToast({ title: "Error", message: "Title is required" });
+      return;
+    }
+
     try {
       const now = new Date();
-      const dateStr = now.toISOString().split('T')[0]; // yyyy-MM-dd format
-      const datetimeStr = now.toISOString().replace('T', ' ').split('.')[0]; // yyyy-MM-dd HH:mm:ss format
+      const dateStr = now.toISOString().split('T')[0];
+      const datetimeStr = now.toISOString().replace('T', ' ').split('.')[0];
 
       const friendlyTime = formatFriendlyTime(now);
       const emoji = getEmojiForType(values.meetingType);
@@ -183,7 +112,7 @@ export default function Command() {
         `type: ${values.meetingType}`
       ];
 
-      const entry = `${formatMetadataComment(dateStr, datetimeStr, meetingFields)}
+      const entry = `${formatMetadataComment(values.meetingType, dateStr, datetimeStr, meetingFields)}
 
 ## ${emoji} ${typeLabel} | ${values.title} | ${friendlyTime}
 
@@ -247,22 +176,6 @@ ${values.tldr ? `${values.tldr}\n\n` : ''}${values.content || ''}
         <Form.Dropdown.Item value="interview" title="🎙️ User Interview" />
       </Form.Dropdown>
 
-      <Form.TextArea
-        id="tldr"
-        title="TLDR"
-        placeholder="Quick personal notes or takeaways (optional)"
-        value={tldr}
-        onChange={setTldr}
-      />
-
-      <Form.TextArea
-        id="content"
-        title="Content"
-        placeholder="Add or paste meeting notes (optional)"
-        value={content}
-        onChange={setContent}
-      />
-
       <Form.TagPicker
         id="attendees"
         title="Attendees"
@@ -281,6 +194,22 @@ ${values.tldr ? `${values.tldr}\n\n` : ''}${values.content || ''}
         placeholder="e.g., John, Jane, Bob"
         value={additionalAttendees}
         onChange={setAdditionalAttendees}
+      />
+
+      <Form.TextArea
+        id="tldr"
+        title="TLDR"
+        placeholder="Quick personal notes or takeaways (optional)"
+        value={tldr}
+        onChange={setTldr}
+      />
+
+      <Form.TextArea
+        id="content"
+        title="Content"
+        placeholder="Add or paste meeting notes (optional)"
+        value={content}
+        onChange={setContent}
       />
     </Form>
   );

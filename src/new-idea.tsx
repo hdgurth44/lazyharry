@@ -1,8 +1,16 @@
 import { Form, ActionPanel, Action, showToast, Clipboard } from "@raycast/api";
-import { existsSync, mkdirSync, appendFileSync, writeFileSync } from "fs";
-import { dirname } from "path";
-import { useState, useEffect } from "react";
+import { appendFileSync } from "fs";
+import { useState, useEffect, useRef } from "react";
 import configDataJson from "./config.json";
+import {
+  ConfigData,
+  getEmojiForType,
+  capitalizeType,
+  formatFriendlyTime,
+  formatMetadataComment,
+  resolveBraindumpPath,
+  isValidUrl
+} from "./utils";
 
 type Values = {
   snippetType: string;
@@ -14,53 +22,6 @@ type Values = {
   tags: string[];
 };
 
-// Helper function to get emoji for entry type
-function getEmojiForType(type: string): string {
-  const emojiMap: { [key: string]: string } = {
-    idea: "💡",
-    note: "📝",
-    meeting: "🤝",
-    task: "✅",
-    reference: "🔗",
-    people: "👤"
-  };
-  return emojiMap[type] || "📝";
-}
-
-// Helper function to capitalize type name
-function capitalizeType(type: string): string {
-  return type.charAt(0).toUpperCase() + type.slice(1);
-}
-
-// Helper function to format time as "10am, Oct 25"
-function formatFriendlyTime(date: Date): string {
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  const ampm = hours >= 12 ? 'pm' : 'am';
-  const displayHours = hours % 12 || 12;
-  const timeStr = minutes === 0 ? `${displayHours}${ampm}` : `${displayHours}:${minutes.toString().padStart(2, '0')}${ampm}`;
-  
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const month = monthNames[date.getMonth()];
-  const day = date.getDate();
-  
-  return `${timeStr}, ${month} ${day}`;
-}
-
-// Helper function to build metadata comment string
-function formatMetadataComment(type: string, date: string, time: string, additionalFields: string[]): string {
-  const base = `<!-- ENTRY: ${type} | ${date} | ${time}`;
-  const fields = additionalFields.join(' | ');
-  return fields ? `${base} | ${fields} -->` : `${base} -->`;
-}
-
-type ConfigData = {
-  defaultAttendee: string;
-  suggestedAttendees: string[];
-  companyPrefixes: Array<{ value: string; title: string }>;
-  peopleTags: string[];
-};
-
 export default function Command() {
   const [snippetType, setSnippetType] = useState("idea");
   const [title, setTitle] = useState("");
@@ -70,60 +31,55 @@ export default function Command() {
     defaultAttendee: "You",
     suggestedAttendees: [],
     companyPrefixes: [],
-    peopleTags: []
+    peopleTags: [],
+    braindumpCandidates: []
   });
+
   // State variables for people type
   const [companyPrefix, setCompanyPrefix] = useState("KU");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+
+  // Track last processed clipboard to avoid re-processing after form reset
+  const lastProcessedClipboard = useRef<string>("");
 
   // Load config data on component mount
   useEffect(() => {
     setConfigData(configDataJson);
   }, []);
 
-  // Resolve braindump path for this machine (supports multiple locations)
-  const braindumpCandidates = [
-    "/Users/harry.angeles/Documents/harryGit/Hnotes/00Inbox/braindump.md",
-    "/Users/harry-daniel.gurth-angeles/Documents/GitHub/Hnotes/00Inbox/braindump.md",
-    "/Users/hdga/Harry-Git/HNotes/00Inbox/braindump.md"
-  ];
+  // Resolve braindump path from config
+  const braindumpPath = resolveBraindumpPath(
+    configData.braindumpCandidates.length > 0
+      ? configData.braindumpCandidates
+      : ["/Users/harry.angeles/Documents/harryGit/Hnotes/00Inbox/braindump.md"]
+  );
 
-  function getFirstExistingPath(paths: string[]): string | null {
-    for (const p of paths) {
-      if (existsSync(p) || existsSync(dirname(p))) return p;
-    }
-    return null;
-  }
-
-  function ensureFileExists(filePath: string) {
-    const dir = dirname(filePath);
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    if (!existsSync(filePath)) writeFileSync(filePath, "");
-  }
-
-  const braindumpPath = (() => {
-    const found = getFirstExistingPath(braindumpCandidates);
-    const chosen = found ?? braindumpCandidates[0];
-    ensureFileExists(chosen);
-    return chosen;
-  })();
-
-  // Pre-populate fields with clipboard content when switching snippet types
+  // Pre-populate fields with clipboard content
   useEffect(() => {
     const populateFromClipboard = async () => {
       try {
         const clipboardText = await Clipboard.readText();
         if (!clipboardText) return;
 
+        // Skip if we already processed this clipboard content
+        if (clipboardText === lastProcessedClipboard.current) return;
+
         const trimmedText = clipboardText.trim();
 
-        if (snippetType === "note" && !url && isValidUrl(trimmedText)) {
+        // Skip if form already has content
+        if (snippetType === "note" && (url || content)) return;
+        if (snippetType === "people" && linkedinUrl) return;
+
+        if (snippetType === "note" && isValidUrl(trimmedText)) {
           setUrl(trimmedText);
-        } else if (snippetType === "people" && !linkedinUrl && isValidUrl(trimmedText)) {
+          lastProcessedClipboard.current = clipboardText;
+        } else if (snippetType === "people" && isValidUrl(trimmedText)) {
           setLinkedinUrl(trimmedText);
+          lastProcessedClipboard.current = clipboardText;
         } else if (snippetType === "note" && !content) {
           setContent(trimmedText);
+          lastProcessedClipboard.current = clipboardText;
         }
       } catch (error) {
         console.error("Error reading clipboard:", error);
@@ -133,29 +89,23 @@ export default function Command() {
     populateFromClipboard();
   }, [snippetType, url, content, linkedinUrl]);
 
-  // Helper function to check if text looks like a URL
-  const isValidUrl = (text: string): boolean => {
-    try {
-      new URL(text);
-      return true;
-    } catch {
-      // Also check for common URL patterns that might not pass URL constructor
-      const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
-      return urlPattern.test(text);
-    }
-  };
-
   function handleSubmit(values: Values) {
+    // Validation
+    if (!values.title?.trim()) {
+      showToast({ title: "Error", message: "Title is required" });
+      return;
+    }
+
     try {
       const now = new Date();
-      const dateStr = now.toISOString().split('T')[0]; // yyyy-MM-dd format
-      const datetimeStr = now.toISOString().replace('T', ' ').split('.')[0]; // yyyy-MM-dd HH:mm:ss format
-      
+      const dateStr = now.toISOString().split('T')[0];
+      const datetimeStr = now.toISOString().replace('T', ' ').split('.')[0];
+
       let entry = "";
       const friendlyTime = formatFriendlyTime(now);
       const emoji = getEmojiForType(values.snippetType);
       const typeLabel = capitalizeType(values.snippetType);
-      
+
       // Format entry based on snippet type
       switch (values.snippetType) {
         case "idea":
@@ -168,7 +118,7 @@ ${values.title}
 ---
 `;
           break;
-          
+
         case "note": {
           const noteFields = [`title: ${values.title}`];
           if (values.url) noteFields.push(`url: ${values.url}`);
@@ -193,7 +143,7 @@ ${values.content || ''}
           ];
           if (values.linkedinUrl) peopleFields.push(`linkedin: ${values.linkedinUrl}`);
           if (tagsList) peopleFields.push(`tags: ${tagsList}`);
-          
+
           entry = `${formatMetadataComment("people", dateStr, datetimeStr, peopleFields)}
 
 ## ${emoji} ${typeLabel} | ${fullName} | ${friendlyTime}
@@ -208,12 +158,12 @@ ${values.content || ''}
 
       // Append to braindump.md file
       appendFileSync(braindumpPath, entry);
-      
-      showToast({ 
-        title: "Entry Added", 
-        message: `"${values.title}" added to braindump.md` 
+
+      showToast({
+        title: "Entry Added",
+        message: `"${values.title}" added to braindump.md`
       });
-      
+
       // Reset all form fields
       setSnippetType("idea");
       setTitle("");
@@ -224,9 +174,9 @@ ${values.content || ''}
       setTags([]);
     } catch (error) {
       console.error("Error writing to braindump.md:", error);
-      showToast({ 
-        title: "Error", 
-        message: "Failed to add entry to braindump.md" 
+      showToast({
+        title: "Error",
+        message: "Failed to add entry to braindump.md"
       });
     }
   }
@@ -236,24 +186,14 @@ ${values.content || ''}
       actions={
         <ActionPanel>
           <Action.SubmitForm onSubmit={handleSubmit} title="Add to Braindump" />
-          <Action.Open 
-            title="Open in Cursor" 
+          <Action.Open
+            title="Open in Cursor"
             target={braindumpPath}
             application="Cursor"
           />
         </ActionPanel>
       }
     >
-      {/* <Form.Description text="📝 Add notes to braindump.md." /> */}
-    
-      <Form.TextArea 
-        id="title" 
-        title="Title" 
-        placeholder={snippetType === "people" ? "e.g., John Smith" : "Add 1-liner"}
-        value={title}
-        onChange={setTitle}
-      />
-      
       <Form.Dropdown
         id="snippetType"
         title="Entry Type"
@@ -264,7 +204,15 @@ ${values.content || ''}
         <Form.Dropdown.Item value="note" title="📝 Note to Self" />
         <Form.Dropdown.Item value="people" title="👤 Person/Contact" />
       </Form.Dropdown>
-      
+
+      <Form.TextArea
+        id="title"
+        title="Title"
+        placeholder={snippetType === "people" ? "e.g., John Smith" : "Add 1-liner"}
+        value={title}
+        onChange={setTitle}
+      />
+
       {snippetType !== "idea" && (
         <Form.TextArea
           id="content"
@@ -297,15 +245,15 @@ ${values.content || ''}
               <Form.Dropdown.Item key={company.value} value={company.value} title={company.title} />
             ))}
           </Form.Dropdown>
-          
-          <Form.TextField 
-            id="linkedinUrl" 
-            title="LinkedIn URL" 
+
+          <Form.TextField
+            id="linkedinUrl"
+            title="LinkedIn URL"
             placeholder="https://linkedin.com/in/..."
             value={linkedinUrl}
             onChange={setLinkedinUrl}
           />
-          
+
           <Form.TagPicker
             id="tags"
             title="Tags"
@@ -317,7 +265,7 @@ ${values.content || ''}
               <Form.TagPicker.Item key={tag} value={tag} title={tag} />
             ))}
           </Form.TagPicker>
-          
+
           <Form.TextArea
             id="peopleNotes"
             title="Initial Notes"
