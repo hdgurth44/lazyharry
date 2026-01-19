@@ -9,7 +9,7 @@ import {
   formatFriendlyTime,
   formatMetadataComment,
   resolveBraindumpPath,
-  isValidUrl
+  isValidUrl,
 } from "./utils";
 
 type Values = {
@@ -32,7 +32,7 @@ export default function Command() {
     suggestedAttendees: [],
     companyPrefixes: [],
     peopleTags: [],
-    braindumpCandidates: []
+    braindumpCandidates: [],
   });
 
   // State variables for people type
@@ -52,7 +52,7 @@ export default function Command() {
   const braindumpPath = resolveBraindumpPath(
     configData.braindumpCandidates.length > 0
       ? configData.braindumpCandidates
-      : ["/Users/harry.angeles/Documents/harryGit/Hnotes/00Inbox/braindump.md"]
+      : ["/Users/harry.angeles/Documents/harryGit/Hnotes/00Inbox/braindump.md"],
   );
 
   // Pre-populate fields with clipboard content
@@ -98,8 +98,8 @@ export default function Command() {
 
     try {
       const now = new Date();
-      const dateStr = now.toISOString().split('T')[0];
-      const datetimeStr = now.toISOString().replace('T', ' ').split('.')[0];
+      const dateStr = now.toISOString().split("T")[0];
+      const datetimeStr = now.toISOString().replace("T", " ").split(".")[0];
 
       let entry = "";
       const friendlyTime = formatFriendlyTime(now);
@@ -127,7 +127,7 @@ ${values.title}
 
 ## ${emoji} ${typeLabel} | ${values.title} | ${friendlyTime}
 
-${values.content || ''}
+${values.content || ""}
 
 ---
 `;
@@ -135,12 +135,9 @@ ${values.content || ''}
         }
 
         case "people": {
-          const tagsList = values.tags.length > 0 ? values.tags.join(', ') : '';
+          const tagsList = values.tags.length > 0 ? values.tags.join(", ") : "";
           const fullName = `${values.companyPrefix} — ${values.title}`;
-          const peopleFields = [
-            `title: ${fullName}`,
-            `company: ${values.companyPrefix}`
-          ];
+          const peopleFields = [`title: ${fullName}`, `company: ${values.companyPrefix}`];
           if (values.linkedinUrl) peopleFields.push(`linkedin: ${values.linkedinUrl}`);
           if (tagsList) peopleFields.push(`tags: ${tagsList}`);
 
@@ -148,7 +145,7 @@ ${values.content || ''}
 
 ## ${emoji} ${typeLabel} | ${fullName} | ${friendlyTime}
 
-${values.content || ''}
+${values.content || ""}
 
 ---
 `;
@@ -161,7 +158,7 @@ ${values.content || ''}
 
       showToast({
         title: "Entry Added",
-        message: `"${values.title}" added to braindump.md`
+        message: `"${values.title}" added to braindump.md`,
       });
 
       // Reset all form fields
@@ -176,7 +173,7 @@ ${values.content || ''}
       console.error("Error writing to braindump.md:", error);
       showToast({
         title: "Error",
-        message: "Failed to add entry to braindump.md"
+        message: "Failed to add entry to braindump.md",
       });
     }
   }
@@ -186,20 +183,11 @@ ${values.content || ''}
       actions={
         <ActionPanel>
           <Action.SubmitForm onSubmit={handleSubmit} title="Add to Braindump" />
-          <Action.Open
-            title="Open in Cursor"
-            target={braindumpPath}
-            application="Cursor"
-          />
+          <Action.Open title="Open in Cursor" target={braindumpPath} application="Cursor" />
         </ActionPanel>
       }
     >
-      <Form.Dropdown
-        id="snippetType"
-        title="Entry Type"
-        value={snippetType}
-        onChange={setSnippetType}
-      >
+      <Form.Dropdown id="snippetType" title="Entry Type" value={snippetType} onChange={setSnippetType}>
         <Form.Dropdown.Item value="idea" title="💡 Quick Idea" />
         <Form.Dropdown.Item value="note" title="📝 Note to Self" />
         <Form.Dropdown.Item value="people" title="👤 Person/Contact" />
@@ -235,12 +223,7 @@ ${values.content || ''}
 
       {snippetType === "people" && (
         <>
-          <Form.Dropdown
-            id="companyPrefix"
-            title="Company"
-            value={companyPrefix}
-            onChange={setCompanyPrefix}
-          >
+          <Form.Dropdown id="companyPrefix" title="Company" value={companyPrefix} onChange={setCompanyPrefix}>
             {configData.companyPrefixes.map((company) => (
               <Form.Dropdown.Item key={company.value} value={company.value} title={company.title} />
             ))}

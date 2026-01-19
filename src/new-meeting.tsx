@@ -9,7 +9,7 @@ import {
   formatFriendlyTime,
   formatMetadataComment,
   resolveBraindumpPath,
-  parseGranolaTranscript
+  parseGranolaTranscript,
 } from "./utils";
 
 type Values = {
@@ -33,7 +33,7 @@ export default function Command() {
     suggestedAttendees: [],
     companyPrefixes: [],
     peopleTags: [],
-    braindumpCandidates: []
+    braindumpCandidates: [],
   });
 
   // Track last processed clipboard to avoid re-processing after form reset
@@ -50,7 +50,7 @@ export default function Command() {
   const braindumpPath = resolveBraindumpPath(
     configData.braindumpCandidates.length > 0
       ? configData.braindumpCandidates
-      : ["/Users/harry.angeles/Documents/harryGit/Hnotes/00Inbox/braindump.md"]
+      : ["/Users/harry.angeles/Documents/harryGit/Hnotes/00Inbox/braindump.md"],
   );
 
   // Pre-populate title and content from clipboard (supports Granola transcript format)
@@ -92,8 +92,8 @@ export default function Command() {
 
     try {
       const now = new Date();
-      const dateStr = now.toISOString().split('T')[0];
-      const datetimeStr = now.toISOString().replace('T', ' ').split('.')[0];
+      const dateStr = now.toISOString().split("T")[0];
+      const datetimeStr = now.toISOString().replace("T", " ").split(".")[0];
 
       const friendlyTime = formatFriendlyTime(now);
       const emoji = getEmojiForType(values.meetingType);
@@ -101,22 +101,21 @@ export default function Command() {
 
       // Combine selected attendees with additional attendees
       const additionalAttendeesList = values.additionalAttendees
-        ? values.additionalAttendees.split(',').map(name => name.trim()).filter(name => name.length > 0)
+        ? values.additionalAttendees
+            .split(",")
+            .map((name) => name.trim())
+            .filter((name) => name.length > 0)
         : [];
       const allAttendees = [...values.attendees, ...additionalAttendeesList];
-      const attendeesStr = allAttendees.join(', ');
+      const attendeesStr = allAttendees.join(", ");
 
-      const meetingFields = [
-        `title: ${values.title}`,
-        `attendees: ${attendeesStr}`,
-        `type: ${values.meetingType}`
-      ];
+      const meetingFields = [`title: ${values.title}`, `attendees: ${attendeesStr}`, `type: ${values.meetingType}`];
 
       const entry = `${formatMetadataComment(values.meetingType, dateStr, datetimeStr, meetingFields)}
 
 ## ${emoji} ${typeLabel} | ${values.title} | ${friendlyTime}
 
-${values.tldr ? `${values.tldr}\n\n` : ''}${values.content || ''}
+${values.tldr ? `${values.tldr}\n\n` : ""}${values.content || ""}
 
 ---
 `;
@@ -126,7 +125,7 @@ ${values.tldr ? `${values.tldr}\n\n` : ''}${values.content || ''}
 
       showToast({
         title: "Meeting Added",
-        message: `"${values.title}" added to braindump.md`
+        message: `"${values.title}" added to braindump.md`,
       });
 
       // Reset all form fields
@@ -140,7 +139,7 @@ ${values.tldr ? `${values.tldr}\n\n` : ''}${values.content || ''}
       console.error("Error writing to braindump.md:", error);
       showToast({
         title: "Error",
-        message: "Failed to add meeting to braindump.md"
+        message: "Failed to add meeting to braindump.md",
       });
     }
   }
@@ -150,11 +149,7 @@ ${values.tldr ? `${values.tldr}\n\n` : ''}${values.content || ''}
       actions={
         <ActionPanel>
           <Action.SubmitForm onSubmit={handleSubmit} title="Add to Braindump" />
-          <Action.Open
-            title="Open in Cursor"
-            target={braindumpPath}
-            application="Cursor"
-          />
+          <Action.Open title="Open in Cursor" target={braindumpPath} application="Cursor" />
         </ActionPanel>
       }
     >
@@ -166,12 +161,7 @@ ${values.tldr ? `${values.tldr}\n\n` : ''}${values.content || ''}
         onChange={setTitle}
       />
 
-      <Form.Dropdown
-        id="meetingType"
-        title="Meeting Type"
-        value={meetingType}
-        onChange={setMeetingType}
-      >
+      <Form.Dropdown id="meetingType" title="Meeting Type" value={meetingType} onChange={setMeetingType}>
         <Form.Dropdown.Item value="meeting" title="🤝 Meeting" />
         <Form.Dropdown.Item value="interview" title="🎙️ User Interview" />
       </Form.Dropdown>

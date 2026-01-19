@@ -25,6 +25,13 @@
       "subtitle": "Add meeting or user interview notes",
       "description": "Appends meeting notes or user interview notes to my local braindump.md file",
       "mode": "view"
+    },
+    {
+      "name": "speed-reader",
+      "title": "Speed Reader",
+      "subtitle": "RSVP speed reading",
+      "description": "Read clipboard text using Rapid Serial Visual Presentation",
+      "mode": "view"
     }
   ],
   "dependencies": {

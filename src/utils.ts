@@ -24,7 +24,7 @@ const EMOJI_MAP: { [key: string]: string } = {
   interview: "🎙️",
   task: "✅",
   reference: "🔗",
-  people: "👤"
+  people: "👤",
 };
 
 export function getEmojiForType(type: string): string {
@@ -39,27 +39,21 @@ export function capitalizeType(type: string): string {
 export function formatFriendlyTime(date: Date): string {
   const hours = date.getHours();
   const minutes = date.getMinutes();
-  const ampm = hours >= 12 ? 'pm' : 'am';
+  const ampm = hours >= 12 ? "pm" : "am";
   const displayHours = hours % 12 || 12;
-  const timeStr = minutes === 0
-    ? `${displayHours}${ampm}`
-    : `${displayHours}:${minutes.toString().padStart(2, '0')}${ampm}`;
+  const timeStr =
+    minutes === 0 ? `${displayHours}${ampm}` : `${displayHours}:${minutes.toString().padStart(2, "0")}${ampm}`;
 
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const month = monthNames[date.getMonth()];
   const day = date.getDate();
 
   return `${timeStr}, ${month} ${day}`;
 }
 
-export function formatMetadataComment(
-  type: string,
-  date: string,
-  time: string,
-  additionalFields: string[]
-): string {
+export function formatMetadataComment(type: string, date: string, time: string, additionalFields: string[]): string {
   const base = `<!-- ENTRY: ${type} | ${date} | ${time}`;
-  const fields = additionalFields.join(' | ');
+  const fields = additionalFields.join(" | ");
   return fields ? `${base} | ${fields} -->` : `${base} -->`;
 }
 
@@ -96,12 +90,12 @@ export function resolveBraindumpPath(candidates: string[]): string {
  * Extracts title from "# Title" heading and removes the date line.
  */
 export function parseGranolaTranscript(text: string): { title: string; content: string } {
-  const lines = text.trim().split('\n');
+  const lines = text.trim().split("\n");
 
   // Check if first line is a markdown heading
   const headingMatch = lines[0]?.match(/^#\s+(.+)$/);
   if (!headingMatch) {
-    return { title: '', content: text.trim() };
+    return { title: "", content: text.trim() };
   }
 
   const title = headingMatch[1].trim();
@@ -114,7 +108,7 @@ export function parseGranolaTranscript(text: string): { title: string; content: 
   while (contentStartIndex < lines.length) {
     const line = lines[contentStartIndex].trim();
     // Skip empty lines
-    if (line === '') {
+    if (line === "") {
       contentStartIndex++;
       continue;
     }
@@ -127,7 +121,7 @@ export function parseGranolaTranscript(text: string): { title: string; content: 
     break;
   }
 
-  const content = lines.slice(contentStartIndex).join('\n').trim();
+  const content = lines.slice(contentStartIndex).join("\n").trim();
   return { title, content };
 }
 
