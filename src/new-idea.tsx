@@ -33,6 +33,7 @@ export default function Command() {
     companyPrefixes: [],
     peopleTags: [],
     braindumpCandidates: [],
+    learningProjects: [],
   });
 
   // State variables for people type

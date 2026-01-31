@@ -5,12 +5,20 @@ import { dirname } from "path";
 // Types
 // ============================================================================
 
+export type LearningProject = {
+  value: string;
+  title: string;
+  obsidianPath: string;
+  linearUrl?: string;
+};
+
 export type ConfigData = {
   defaultAttendee: string;
   suggestedAttendees: string[];
   companyPrefixes: Array<{ value: string; title: string }>;
   peopleTags: string[];
   braindumpCandidates: string[];
+  learningProjects: LearningProject[];
 };
 
 // ============================================================================
@@ -25,6 +33,7 @@ const EMOJI_MAP: { [key: string]: string } = {
   task: "✅",
   reference: "🔗",
   people: "👤",
+  learning: "📚",
 };
 
 export function getEmojiForType(type: string): string {

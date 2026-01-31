@@ -32,6 +32,14 @@
       "subtitle": "RSVP speed reading",
       "description": "Read clipboard text using Rapid Serial Visual Presentation",
       "mode": "view"
+    },
+    {
+      "name": "learning",
+      "title": "Learning Entry",
+      "subtitle": "Log a learning session",
+      "description": "Capture learnings with project, time, and Linear issue metadata",
+      "mode": "view",
+      "keywords": ["learn", "study", "log"]
     }
   ],
   "dependencies": {

@@ -34,6 +34,7 @@ export default function Command() {
     companyPrefixes: [],
     peopleTags: [],
     braindumpCandidates: [],
+    learningProjects: [],
   });
 
   // Track last processed clipboard to avoid re-processing after form reset

@@ -12,5 +12,24 @@
     "/Users/harry.angeles/Documents/harryGit/Hnotes/00Inbox/braindump.md",
     "/Users/harry-daniel.gurth-angeles/Documents/GitHub/Hnotes/00Inbox/braindump.md",
     "/Users/hdga/Harry-Git/HNotes/00Inbox/braindump.md"
+  ],
+  "learningProjects": [
+    {
+      "value": "Flutter Fundamentals",
+      "title": "🧑‍💻 Flutter Fundamentals",
+      "obsidianPath": "01Projects/KU — Flutter Fundamentals/index.md",
+      "linearUrl": "https://linear.app/knowunity/project/flutter-fundamentals-7583776b5e11"
+    },
+    {
+      "value": "Design System Mastery",
+      "title": "🎨 Design System Mastery",
+      "obsidianPath": "01Projects/KU — Design System Mastery/index.md",
+      "linearUrl": "https://linear.app/knowunity/project/design-system-mastery-1746f0ffced1"
+    },
+    {
+      "value": "Jazz Exploration",
+      "title": "🎵 Jazz Exploration",
+      "obsidianPath": "01Projects/JZ — Jazz Exploration/index.md"
+    }
   ]
 }
